@@ -31,6 +31,39 @@ addToLibrary({
   ],
 
   $Asyncify: {
+    // Sleep Tasks
+    sleepTasksOnce: {
+      // priority: [task, ...]
+    },
+    addSleepTaskOnce(taskName, taskPromise, priority = 0) {
+      const taskItem = {
+        name: taskName,
+        promise: taskPromise,
+      }
+      Asyncify.sleepTasksOnce[priority] = Asyncify.sleepTasksOnce[priority]?.concat(taskItem) || [taskItem];
+    },
+    getSleepTasksOnce() {
+      return Object.entries(Asyncify.sleepTasksOnce)
+        .sort(([indexA,], [indexB,]) => indexA - indexB)
+        .map(([, tasks]) => tasks)
+        .flat();
+    },
+    clearSleepTasksOnce() {
+      Asyncify.sleepTasksOnce = {};
+    },
+    
+    // Sleep Callbacks
+    sleepCallbacksOnce: [],
+    addSleepCallbackOnce(callback) {
+      Asyncify.sleepCallbacksOnce.push(callback);
+    },
+    getSleepCallbacksOnce() {
+      return Asyncify.sleepCallbacksOnce;
+    },
+    clearSleepCallbacksOnce() {
+      Asyncify.sleepCallbacksOnce = [];
+    },
+  
     //
     // Asyncify code that is shared between mode 1 (original) and mode 2 (JSPI).
     //
@@ -406,6 +439,14 @@ addToLibrary({
         _free(Asyncify.currData);
         Asyncify.currData = null;
         // Call all sleep callbacks now that the sleep-resume is all done.
+        
+        // Single calls
+        const callbacksOnce = Asyncify.getSleepCallbacksOnce();
+        console.log('callbacksOnce', callbacksOnce);
+        callbacksOnce.forEach(callUserCallback);
+        Asyncify.clearSleepCallbacksOnce();
+        
+        // Saved calls
         Asyncify.sleepCallbacks.forEach(callUserCallback);
       } else {
         abort(`invalid state: ${Asyncify.state}`);
@@ -459,11 +500,23 @@ addToLibrary({
   emscripten_sleep__deps: ['$safeSetTimeout'],
   emscripten_sleep__async: true,
   emscripten_sleep: (ms) => {
-    // emscripten_sleep() does not return a value, but we still need a |return|
-    // here for stack switching support (ASYNCIFY=2). In that mode this function
-    // returns a Promise instead of nothing, and that Promise is what tells the
-    // wasm VM to pause the stack.
-    return Asyncify.handleSleep((wakeUp) => safeSetTimeout(wakeUp, ms));
+    // Initial sleep promise; ignore duration and use 0 instead
+    const sleepPromise = new Promise((resolve) => safeSetTimeout(resolve, 0));
+
+    // Get sleepTasksOnce, a list of promises
+    const taskItems = Asyncify.getSleepTasksOnce();
+    console.log('tasks', taskItems.map(task => task.name));
+    // Create a promise that executes all tasks sequentially
+    const promises = taskItems.map(task => task.promise);
+    const completeAllTasksPromise = promises.reduce((last, next) => last.then(next), sleepPromise);
+
+    // Handle sleep for the duration of the promise
+    return Asyncify.handleSleep((wakeUp) => {
+      completeAllTasksPromise.then(() => {
+        Asyncify.clearSleepTasksOnce();
+        wakeUp();
+      });
+    });
   },
 
   emscripten_wget_data__deps: ['$asyncLoad', 'malloc'],
