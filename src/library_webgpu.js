@@ -1580,18 +1580,8 @@ var LibraryWebGPU = {
     if (labelPtr) desc["label"] = UTF8ToString(labelPtr);
 
     switch (sType) {
-      case {{{ gpu.SType.ShaderModuleSPIRVDescriptor }}}: {
-        var count = {{{ gpu.makeGetU32('nextInChainPtr', C_STRUCTS.WGPUShaderModuleSPIRVDescriptor.codeSize) }}};
-        var start = {{{ makeGetValue('nextInChainPtr', C_STRUCTS.WGPUShaderModuleSPIRVDescriptor.code, '*') }}};
-        var offset = {{{ getHeapOffset('start', 'u32') }}};
-#if PTHREADS
-        // Chrome can't currently handle a SharedArrayBuffer view here, so make a copy.
-        desc["code"] = HEAPU32.slice(offset, offset + count);
-#else
-        desc["code"] = HEAPU32.subarray(offset, offset + count);
-#endif
-        break;
-      }
+      case {{{ gpu.SType.ShaderModuleSPIRVDescriptor }}}: 
+        abort('Data-race verification for SPIR-V is not supported');
       case {{{ gpu.SType.ShaderModuleWGSLDescriptor }}}: {
         var sourcePtr = {{{ makeGetValue('nextInChainPtr', C_STRUCTS.WGPUShaderModuleWGSLDescriptor.code, '*') }}};
         if (sourcePtr) {
@@ -1603,6 +1593,8 @@ var LibraryWebGPU = {
       default: abort('unrecognized ShaderModule sType');
 #endif
     }
+
+    // TODO: Check for data-races with Faial
 
     var device = WebGPU.mgrDevice.get(deviceId);
     return WebGPU.mgrShaderModule.create(device.createShaderModule(desc));
