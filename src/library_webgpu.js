@@ -1594,7 +1594,10 @@ var LibraryWebGPU = {
 #endif
     }
 
-    // TODO: Check for data-races with Faial
+    Asyncify.addSleepTaskOnce('Data-Race Validation', async  () => {
+      const res = await Module.dataRaceValidator(desc.code);
+      if (!res) abort("Data-Race Validation failed.");
+    });
 
     var device = WebGPU.mgrDevice.get(deviceId);
     return WebGPU.mgrShaderModule.create(device.createShaderModule(desc));
