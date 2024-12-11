@@ -503,12 +503,14 @@ addToLibrary({
   emscripten_sleep__deps: ['$safeSetTimeout'],
   emscripten_sleep__async: true,
   emscripten_sleep: (ms) => {
+    if (ms > 0) console.warn('Attempted to sleep for ' + ms + 'ms, ignoring.');
+
     // Initial sleep promise; ignore duration and use 0 instead
     const sleepPromise = new Promise((resolve) => safeSetTimeout(resolve, 0));
 
     // Get sleepTasksOnce, a list of promises
     const taskItems = Asyncify.getSleepTasksOnce();
-    console.log('tasks', taskItems.map(task => task.name));
+    console.log('[Asyncify] running SleepTasks', taskItems.map(task => task.name));
     // Create a promise that executes all tasks sequentially
     const promises = taskItems.map(task => task.promise);
     const completeAllTasksPromise = promises.reduce((last, next) => last.then(next), sleepPromise);
