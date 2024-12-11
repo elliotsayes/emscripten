@@ -40,6 +40,7 @@ addToLibrary({
         name: taskName,
         promise: taskPromise,
       }
+      console.log('[Asyncify] addSleepTaskOnce', taskName);
       Asyncify.sleepTasksOnce[priority] = Asyncify.sleepTasksOnce[priority]?.concat(taskItem) || [taskItem];
     },
     getSleepTasksOnce() {
@@ -442,9 +443,11 @@ addToLibrary({
         
         // Single calls
         const callbacksOnce = Asyncify.getSleepCallbacksOnce();
-        console.log('callbacksOnce', callbacksOnce);
-        callbacksOnce.forEach(callUserCallback);
-        Asyncify.clearSleepCallbacksOnce();
+        if (callbacksOnce.length > 0) {
+          console.log('callbacksOnce', callbacksOnce);
+          callbacksOnce.forEach(callUserCallback);
+          Asyncify.clearSleepCallbacksOnce();
+        }
         
         // Saved calls
         Asyncify.sleepCallbacks.forEach(callUserCallback);
