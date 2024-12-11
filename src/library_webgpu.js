@@ -209,7 +209,18 @@ var LibraryWebGPU = {
 #if ASSERTIONS
       assert(!WebGPU.mgrDevice, 'initManagers already called');
 #endif
+      WebGPU.createManagers();
+    },
 
+    reset: () => {
+#if ASSERTIONS
+      assert(WebGPU.mgrDevice, 'initManagers has not been called');
+#endif
+      WebGPU.createManagers();
+      WebGPU.preinitializedDeviceId = undefined;
+    },
+
+    createManagers: () => {
       /** @constructor */
       function Manager() {
         this.objects = {};
